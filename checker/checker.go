@@ -86,6 +86,8 @@ func (c *Checker) Loop() {
 				continue
 			}
 
+			c.RetryCheckSegment(seg)
+
 			c.CurrentMediaSequence = seg.MediaSequence
 		}
 	}
