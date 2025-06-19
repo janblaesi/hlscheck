@@ -23,8 +23,8 @@ package main
 
 import (
 	"flag"
-	"hlscheck/checker"
-	"hlscheck/plist"
+	"github.com/janblaesi/hlscheck/checker"
+	"github.com/janblaesi/hlscheck/plist"
 	"log/slog"
 	"os"
 	"os/signal"

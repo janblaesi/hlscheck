@@ -22,7 +22,7 @@
 package checker
 
 import (
-	"hlscheck/plist"
+	"github.com/janblaesi/hlscheck/plist"
 	"io"
 	"log/slog"
 	"net/http"
