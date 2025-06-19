@@ -1,0 +1,56 @@
+name: Release
+on:
+  push:
+    tags: ["*"]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23"
+      - name: Build for amd64
+        run: go build -o hlscheck -v .
+        env:
+          GOOS: linux
+          GOARCH: amd64
+      - name: Pack amd64 artifact
+        run: tar -czf hlscheck_amd64.tar.gz hlscheck
+      - name: Build for arm64
+        run: go build -o hlscheck -v .
+        env:
+          GOOS: linux
+          GOARCH: arm64
+      - name: Pack arm64 artifact
+        run: tar -czf hlscheck_arm64.tar.gz hlscheck
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          draft: true
+          prerelease: false
+          release_name: ${{ github.ref }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload amd64 artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./hlscheck_amd64.tar.gz
+          asset_name: hlscheck_amd64.tar.gz
+          asset_content_type: application/x-gzip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload arm64 artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./hlscheck_arm64.tar.gz
+          asset_name: hlscheck_arm64.tar.gz
+          asset_content_type: application/x-gzip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
