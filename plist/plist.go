@@ -60,6 +60,8 @@ type Plist struct {
 	Entries []Entry
 	// CurrentMediaSequence is the current value of the sequence number for the next segment. To be incremented after each segment.
 	CurrentMediaSequence uint64
+	// TargetDurationSec is the target duration of each segment.
+	TargetDurationSec uint64
 }
 
 // parseStreamInfTag will parse an #EXT-X-STREAM-INF tag.
@@ -124,6 +126,7 @@ func parseInfTag(e *Entry, tag string) error {
 	return nil
 }
 
+// parseMediaSequenceTag will parse an EXT-X-MEDIA-SEQUENCE tag
 func parseMediaSequenceTag(pl *Plist, tag string) error {
 	tagValue, tagValid := strings.CutPrefix(tag, "EXT-X-MEDIA-SEQUENCE:")
 	if !tagValid {
@@ -136,6 +139,23 @@ func parseMediaSequenceTag(pl *Plist, tag string) error {
 	}
 
 	pl.CurrentMediaSequence = mediaSequence
+
+	return nil
+}
+
+// parseTargetDurationTag will parse an EXT-X-TARGETDURATION tag
+func parseTargetDurationTag(pl *Plist, tag string) error {
+	tagValue, tagValid := strings.CutPrefix(tag, "EXT-X-TARGETDURATION:")
+	if !tagValid {
+		return fmt.Errorf("malformed EXT-X-TARGETDURATION tag")
+	}
+
+	targetDurationSec, err := strconv.ParseUint(tagValue, 10, 64)
+	if err != nil {
+		return fmt.Errorf("unable to parse target duration from EXT-X-TARGETDURATION tag")
+	}
+
+	pl.TargetDurationSec = targetDurationSec
 
 	return nil
 }
@@ -185,6 +205,10 @@ func Parse(pl *Plist, plUrlStr string, str string) error {
 				// We store the media sequence indicated in the playlist to get the unique segment number for each
 				// segment. This can then be used to ensure every segment is only fetched once.
 				if err = parseMediaSequenceTag(pl, extTag); err != nil {
+					return fmt.Errorf("line %d: %v", lineIdx, err)
+				}
+			} else if strings.HasPrefix(extTag, "EXT-X-TARGETDURATION") {
+				if err = parseTargetDurationTag(pl, extTag); err != nil {
 					return fmt.Errorf("line %d: %v", lineIdx, err)
 				}
 			}

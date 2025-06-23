@@ -42,6 +42,14 @@ type Checker struct {
 	ProtocolErrorCount uint64
 	// EmptySegmentErrorCount is the number of empty segment errors that occured while checking.
 	EmptySegmentErrorCount uint64
+	// LastTargetDurationSec is the last signalled target duration in the playlist.
+	LastTargetDurationSec uint64
+	// SegmentTimeoutSec is the maximum duration that may expire before a new segment is expected.
+	SegmentTimeoutSec time.Duration
+	// LastSegmentReceived is the time when the last new segment was processed.
+	LastSegmentReceived time.Time
+	// SegmentStallError indicates, if a segment stall error is currently active
+	SegmentStallError bool
 }
 
 type CheckSegmentResult uint
@@ -80,15 +88,41 @@ func (c *Checker) Loop() {
 			continue
 		}
 
+		if c.LastTargetDurationSec != pl.TargetDurationSec {
+			c.SegmentTimeoutSec = time.Duration(pl.TargetDurationSec*2) * time.Second
+			slog.Info(
+				"Target duration has changed",
+				"old_duration", c.LastTargetDurationSec,
+				"new_duration", pl.TargetDurationSec,
+				"new_timeout", c.SegmentTimeoutSec,
+			)
+			c.LastTargetDurationSec = pl.TargetDurationSec
+		}
+
 		for _, seg := range pl.Entries {
 			// Skip all segments that have already been checked.
 			if seg.MediaSequence <= c.CurrentMediaSequence {
 				continue
 			}
 
+			// Once a new segment is registered, release the stall error.
+			if c.SegmentStallError {
+				c.SegmentStallError = false
+			}
+
 			c.RetryCheckSegment(seg)
 
 			c.CurrentMediaSequence = seg.MediaSequence
+			c.LastSegmentReceived = time.Now()
+		}
+
+		// Trigger an error when no new segments have been received for two times the target duration.
+		if !c.SegmentStallError && (time.Now().Sub(c.LastSegmentReceived) > c.SegmentTimeoutSec) {
+			slog.Error(
+				"Segment timeout has been exceeded, stream may have stalled.",
+				"last_seg_rx", c.LastSegmentReceived,
+			)
+			c.SegmentStallError = true
 		}
 	}
 }
