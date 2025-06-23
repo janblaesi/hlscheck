@@ -84,7 +84,7 @@ func (c *Checker) Loop() {
 
 		pl := plist.Plist{}
 		if err := plist.FetchAndParse(&pl, c.URL); err != nil {
-			slog.Error("Fetching variant playlist failed", "url", c.URL)
+			slog.Error("Fetching variant playlist failed", "url", c.URL, "err", err)
 			continue
 		}
 
